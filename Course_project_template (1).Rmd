@@ -1,0 +1,825 @@
+---
+title: "The Impact of Class Size on Academic Achievement"
+author: "Jaehwan Kim"
+date: "03-18-2024"
+output:
+  html_document:
+    df_print: paged
+    number_sections: yes
+---
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.pos = 'H')
+```
+
+***
+
+# Abstract
+
+
+This report analyzes the Tennessee Student/Teacher Achievement Ratio (STAR) study, investigating the impact of class size on students' academic achievement, with a specific focus on math scores in the 1st grade. We will employ both descriptive and inferential analyses to ascertain whether class size has a statistically significant effect on scores and to determine which type of class achieves the highest math scores. Additionally, we conducted further analysis on the data to explore the reasons why small class sizes may lead to relatively higher student achievement.
+In conclusion, our analysis indicates a significant positive correlation between small class sizes and enhanced student achievement compared to larger classes. Upon closer examination of contributing factors, we found that small class sizes yield particularly notable benefits for younger grades, resulting in significantly higher academic performance. Additionally, students in small classes exhibit more effective progression, suggesting that teachers can provide more personalized supervision and instruction in smaller settings. Moreover, small class sizes offer advantages for students in terms of socialization and learning techniques beyond the standard curriculum, further augmenting their academic success.
+
+# Introduction
+
+
+This analysis discusses a project that evaluates the impact of class size on students' academic performance, based on the STAR study. The project focuses on the dataset of 1st-grade math scores and compares scores across three types of classes: small classes, regular classes, and regular classes with a teacher's aide. Our primary concern is to determine whether there are significant differences in 1st-grade math scores across class types, and we also have a secondary interest in identifying which class type may yield the highest math scores in 1st grade. Teachers are treated as unique units of analysis in this study. The analysis will introduce the dataset and research questions, conduct data exploration and analysis, propose suitable statistical models, perform model diagnostics and sensitivity analysis, discuss the results, and conclude with considerations regarding the approach. If this analysis follows the methodology of previous studies, it could serve as a validation of prior research.
+The STAR project first ensured the participation of all schools in the state of Tennessee, thereby eliminating the possibility of classroom size effects resulting from the selection of specific schools. Additionally, by including a substantial number of students (more than 7000), the study aimed to mitigate the impact of classroom size by creating three class types within each school and randomly assigning teachers and students, thus controlling for student ability, teacher differences, school financial resources, curriculum disparities, and other factors that may influence classroom size. Moreover, to address the Hawthorne effect (changes in performance due to being observed), control schools were also incorporated. These considerations were deemed suitable for designing a study to elucidate classroom effects, ensuring minimal error due to specific sampling.
+ 
+# Background 
+
+
+The STAR experiment was conducted to test early childhood education theory. It was a large, randomized, and longitudinal experiment that had a high-intensity impact on children for up to several consecutive years, affecting all student-teacher interactions in the learning setting. The experiment randomly assigned kindergarten students to Small, Regular, or Regular with a full-time Aide classes in 79 schools, with at least one of each class type in each school. The class arrangement remained the same throughout the day and school year, and the only intervention was class size and a full-time teacher aide for Regular with Aide classes. The experiment’s large sample size and random assignment ensured validity. The experiment measured cognitive and non-cognitive outcomes, and a follow-up study was conducted between 1990 and 1996 to assess the long-term benefits of the STAR experiment. In the Enduring Effects Phase (1996-2011 and beyond), the STAR database of 11,601 students with full test data was used to study class size by STAR principal investigators and others.
+
+
+
+# Descriptive analysis 
+
+
+```{r, results='hide', message = FALSE, warning = FALSE, echo = FALSE}
+library(foreign)
+library(knitr)
+library(ggplot2)
+library(dplyr)
+
+STAR = read.spss("STAR_Students.sav", to.data.frame = TRUE)
+attr(STAR, "variable.labels")
+str(STAR)   # 11601 obs. of  379 variables
+head(STAR)
+
+star_g1 <- subset(STAR, FLAGSG1 == "YES") # data of grade 1 
+str(star_g1)  # 6,829 obs. of  379 variables
+```
+
+The analysis dataset comprised a total of 11,601 students and consisted of 379 variables. This report focuses on first-grade students, with data pertaining to 6,829 individuals. Below, we will analyze the variables in the dataset. 
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE}
+# str(star_g1)
+# head(star_g1)
+
+## g1classtype, g1schid, race, 
+
+
+# table(star_g1$gender)  MALE 3541, Female 3275
+
+# length(unique(star_g1$g1schid))  # 76 school
+
+```
+## Variable Description
+
+**Class Type**
+
+The classes are divided into small, regular, and regular-with-aide, where the classification aligns with the following description: small class (13 to 17 students per teacher), regular class (22 to 25 students per teacher), and regular-with-aide class (22 to 25 students with a full-time teacher’s aide). The actual data are presented in Table 1 below. In some experimental datasets, class sizes slightly deviated from the classification criteria.
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE}
+
+# table(star_g1$g1classtype)
+# table(star_g1$g1classtype, star_g1$g1classsize)
+
+# Class Type
+
+data1 <- data.frame(
+  Variable = c("Small", "Regular", "Regular + Aide"),
+  Data_Count = c(1925, 2584, 2320),
+  Class_Size = c("12 ~ 20", "16 ~ 30", "19 ~ 30")
+)
+
+kable(data1, caption = "Table1. Class Type", align = c("l", "c", "c"))
+
+
+
+# table(star_g1$g1surban)
+#table(star_g1$gender)
+#table(star_g1$race)
+```
+
+**School Type(Location)**
+
+The dataset comprises students from different types of schools, including inner-city, suburban, rural, and urban schools. According to the data, there are 1380 students from inner-city schools, 1586 students from suburban schools, 3237 students from rural schools, and 626 students from urban schools. 
+
+**Gender, Ethnicity**
+
+The data indicates a nearly even split between male (3541 students) and female (3275 students) students. This reflects a well-balanced gender distribution among 1st-grade students, which aligns with typical population demographics, indicating a positive trend. The predominant ethnic group among the student body comprises individuals of Caucasian descent, totaling 4528 students, whereas African American students follow closely behind, numbering 2221. Other ethnic backgrounds are represented in smaller proportions, underscoring the heterogeneous nature of the student population.
+
+**Teaching Experience, Ethnicity, Degree and Career Ladder**
+
+Teachers' tenure ranges from 0 to 42 years, and their highest educational attainment spans from BACHELORS to DOCTORAL, with the majority holding BACHELORS degrees. The distribution of career ladder levels is presented in Table 2. 
+
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE}
+library(kableExtra)
+
+# grade1 teacher 
+teacher_dt <- star_g1[,c("g1tchid","g1tyears", "g1trace", "g1tcareer", "g1thighdegree")] 
+teacher_dt_uniq <- unique(teacher_dt)
+
+# teacher experience
+#hist(teacher_dt_uniq$g1tyears,
+#    main = "Teacher Experience Histogram",  
+#    xlab = "Years of Experience",            
+#    ylab = "Frequency",                    
+#    col = "skyblue", 
+#    border = "white")
+
+#table(teacher_dt_uniq$g1trace)
+#table(teacher_dt_uniq$g1thighdegree)
+#table(teacher_dt_uniq$g1tcareer)
+
+teacher <- data.frame(
+  ethnicity = c("Caucasian", "African American", "ASIAN", "OTHER"),
+  count = c(279, 59, 0, 0),
+  degree = c("BACHELORS", "MASTERS", "SPECIALIST", "DOCTORAL"),
+  degree_count = c(219, 116, 2, 1),
+  ladder_level = c("LADDER LEVEL 1", "LADDER LEVEL 2", "LADDER LEVEL 3", "OTHER"),
+  ladder_count = c(225, 5, 15, 92)
+)
+
+kable(teacher, align = "c", caption = "Table2. Teacher Information") %>%
+  kable_styling()
+
+```
+
+**Math Score**
+
+The distribution of 1st-grade math scores exhibits a pattern similar to a normal distribution, albeit slightly skewed to the left. The scores range from 404 to 676, with a variance of 1858.358.
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE}
+
+star_temp <- STAR[,c("FLAGSG1","g1classtype", "g1schid","g1tchid","g1classsize","g1tmathss", "g1absent", "g1motivraw", "g1selfconcraw", "g1promote", "g1surban", "g1freelunch" )]
+
+# summary(star_temp$g1tmathss)
+# var(star_temp$g1tmathss, na.rm = TRUE)
+
+# table
+math_summary <- data.frame(
+  Measure = c("Minimum", "1st Quartile", "Median", "Mean", "3rd Quartile", "Maximum", "Variance"),
+  Score = c(404.0, 500.0, 529.0, 530.5, 557.0, 676.0, 1858.358)
+)
+kable(t(math_summary), caption = "Table 3. Summary Statistics of Math Scores")
+
+
+#histogram
+hist(star_temp$g1tmathss,
+     main = "Distribution of 1st-grade math scores",  
+     xlab = "Math Score",            
+     ylab = "Frequency",                    
+     col = "skyblue", 
+     border = "white")
+
+```
+
+```{r, results='hide', message = FALSE, warning = FALSE, echo = FALSE}
+#table(star_temp$g1classtype, star_temp$g1classsize)
+#table(star_temp$g1classtype)
+
+#head(star_temp)
+star_dt_g1 <- subset(star_temp, FLAGSG1 == "YES") # data of grade 1 
+#head(star_dt_g1)
+#str(star_dt_g1)
+summary(star_dt_g1)
+
+ncol(star_dt_g1)
+nrow(star_dt_g1)
+star_dt <- star_dt_g1[,-1]
+ncol(star_dt)
+head(star_dt)
+str(star_dt)
+
+# star_temp <- STAR[,c("FLAGSG1","g1classtype", "g1schid","g1tchid","g1classsize","g1tmathss", "g1absent", "g1motivraw", "g1selfconcraw", "g1promote", "g1surban", "g1freelunch" )]
+colnames(star_dt) = c("class_type", "school_id","teacher_id", "class_size", "math_score", "absent", "motivation", "self_concept", "promotion", "school_location", "free_lunch")
+head(star_dt)
+#str(star_dt)
+#hist(STAR$g1motivraw)
+model1 <- lm(g1motivraw~as.factor(g1classtype), data=STAR)
+#summary(model1)
+#hist(STAR$g1selfconcraw)
+```
+
+**Mean and Median of Math Score**
+
+In this report, teachers will be treated as units, and the analysis will focus on calculating the mean or median of students' scores. This approach reduces the degrees of freedom compared to analyzing individual student values, making statistical analysis effectively. Both the mean and median distributions are relatively close to a normal distribution. Further analysis will be conducted to verify the validity of hypotheses regarding the distribution of values. While the mean effectively represents the values of the group, it can be influenced by outliers within the group's range. Therefore, considering the possibility of outliers within the group, this report will proceed with analysis using the median.
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE}
+
+par(mfrow = c(1, 2))
+
+# calculate the mean by teacher_id
+
+math_mean_tch <- star_dt %>%
+  group_by(teacher_id) %>%
+  summarise(math_mean_score = mean(math_score, na.rm = TRUE))
+
+hist(math_mean_tch$math_mean_score,
+     main = "Distribution of the mean math",  
+     xlab = "Mean Math Score",            
+     ylab = "Frequency",                    
+     col = "skyblue", 
+     border = "white", 
+     breaks = 20,
+    )
+
+
+# calculate the median by teacher_id
+
+math_median_tch <- star_dt %>%
+  group_by(teacher_id) %>%
+  summarise(math_median_score = median(math_score, na.rm = TRUE))
+
+hist(math_median_tch$math_median_score,
+     main = "Distribution of the median math",  
+     xlab = "Median Math Score",            
+     ylab = "Frequency",                    
+     col = "skyblue", 
+     border = "white", 
+     breaks = 20,
+    )
+
+par(mfrow = c(1, 1))
+```
+
+**Other Key Variables**
+
+The data were collected to investigate whether math performance of students is influenced by class type. However, there may be various factors affecting actual math scores, and if performance varies by class type, further research is needed to determine the underlying causes. Analysis of additional data, such as student attendance(absent) records related to diligence, motivation, self-concept, and final promotion outcomes, may shed light on factors closely associated with student performance. Additionally, the school's location and free lunch status could serve as indirect indicators of household income level.
+
+
+```{r, message = FALSE, warning = FALSE, echo = FALSE}
+
+variables <- c("absent(g1absent)", "motivation(g1motivraw)", "self-concept(g1selfconcraw)", "promotion(g1promote)", "location of school(g1surban)", "free lunch(g1freelunch)")
+descriptions <- c("Number of days absent from school in Grade 1",
+                  "Raw motivation score in Grade 1",
+                  "Raw self-concept score in Grade 1",
+                  "Recommended for promotion from Grade 1 to Grade 2",
+                  "location of school indicator in Grade 1(inner-city, suburban, rural, urban)",
+                  "Indicator for free lunch program participation in Grade 1")
+
+variables_df <- data.frame(Variable = variables, Description = descriptions)
+kable(variables_df, caption = "Table 4. Description of Other Variables")
+
+```
+
+
+## Variables Relationship
+
+**Math by Class Type**
+According to the results, the median scores are highest in the order of small, regular with aide, and regular classes. Similarly, the variance follows the same pattern, being highest in small classes, followed by regular with aide, and then regular classes. Statistical analysis is required to determine whether these differences in performance among class types are statistically significant.
+
+```{r, results='hold', message = FALSE, warning = FALSE, echo = FALSE}
+# calculate the median by teacher id
+
+star_dt_med <- star_dt %>%
+  group_by(teacher_id) %>%
+  mutate(median_math_score = median(math_score, na.rm = TRUE))
+
+#head(star_dt_med)
+
+# box-plot
+
+ggplot(star_dt_med, aes(x = class_type, y = median_math_score, fill = class_type)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Median Math Score by Class Type",
+       x = "Class Type",
+       y = "Median Math Score") +
+  theme_minimal()
+
+```
+
+**Math by School ID**
+
+The distribution of the count of school IDs by the range of average math scores appears to roughly follow a normal distribution. However, some deviate from the typical normal distribution shape. However, such results may reflect differences in student performance among schools. In particular, upon examining the graph below, it becomes evident that some schools belong to the upper echelon, while others are situated in the lower spectrum. Such findings suggest that the performance of students may be influenced by the schools they attend. To address this issue, the study devised three class types for each school and randomly assigned teachers and students. Consequently, according to the data collection design, there is no inherent risk of research bias attributed to schools. However, it is imperative to ascertain through statistical analysis whether there exists a reciprocal relationship between schools, class types, and student performance. 
+
+```{r, results='hold', message = FALSE, warning = FALSE, echo = FALSE}
+
+# histogram
+
+school_id_counts <- star_dt_med %>%
+  distinct(school_id, .keep_all = TRUE) %>%
+  count(median_math_score, sort = TRUE)
+
+ggplot(school_id_counts, aes(x = median_math_score, y = n)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "white", width = 0.8) + 
+  labs(title = "Histogram of School ID Counts by Median Math Score",
+       x = "Median Math Score", y = "Count of School ID") +
+  theme_minimal()
+
+```
+
+**Math by location of school**
+
+Observing the histogram and Table 5, an important observation can be made. Firstly, through the box plot, it can be seen that there is a difference in math scores among school locations. Comparing the medians, particularly, it is not difficult to observe that inner city has lower math scores compared to the other locations. Additionally, in inner city and urban areas, the 'Regular + Aide' class type has higher median math scores compared to Regular classes. However, the fact that the median for 'Regular + Aide' in inner city and urban areas is located at the lower end of the box suggests the presence of outliers or skewness in the data, warranting further analysis.
+
+Furthermore, Table 5 reveals that inner city and urban areas have relatively higher proportions of free lunch recipients. Particularly, it can be observed that inner city has more than twice the proportion compared to the other areas. Considering that free lunch is typically utilized by low-income families and the unfavorable living conditions in inner city areas, it can be inferred that free lunch indirectly reflects the income level of students' households, indicating that households in inner city and urban areas may have lower income levels. Taking into account the significant differences of inner city compared to other areas in terms of trends, data values, and characteristics, it is deemed necessary to pay attention to future model analysis and conclusion interpretation.
+
+```{r, results='hold', message = FALSE, warning = FALSE, echo = FALSE}
+
+ggplot(star_dt_med, aes(x = school_location, y = median_math_score, fill = class_type)) +
+  geom_boxplot() +
+  labs(title = "Median Math Score by Class Type within School Location",
+       x = "School Location",
+       y = "Median Math Score",
+       fill = "Class Type") +
+  theme_minimal()
+
+# table(star_dt$school_location, star_dt$free_lunch)
+school_location_table <- table(star_dt$school_location, star_dt$free_lunch)
+school_location_table_prop <- prop.table(school_location_table, margin = 1)
+
+school_location_table_combined <- school_location_table
+school_location_table_combined[] <- paste(school_location_table, " (", round(school_location_table_prop * 100, 1), "%)", sep = "")
+
+kable(school_location_table_combined, caption = "Table5. School Location vs. Free Lunch (Number (Proportion))", col.names = c("Free Lunch", "Non-Free Lunch"))
+
+```
+
+# Inferential analysis 
+
+
+In this study, analysis is required primarily to answer two questions. The primary question of interest is whether there are any differences in math scaled scores in 1st grade across class types, and if so, a secondary question of interest is which class type is associated with the highest math scaled scores in 1st grade. To address these questions, we will analyze the math score using individual teachers as the unit, taking the median value. The independent variable will be the class type, and additionally, we will include the school unit. This inclusion of the school unit is necessary as factors such as teacher differences, curriculum variations, differences in school budgets, and differences in school levels may influence academic performance. Furthermore, we will examine the interaction term of these variables to determine whether they are necessary to consider the influence of class type.
+
+Based on the initial tests conducted to determine the necessity of the interaction term, we have decided to exclude it from our analysis for several reasons. Firstly, when comparing the reduced model without the interaction term against the full model using an ANOVA test, the resulting p-value was 0.04579. This suggests that, at a significance level of 0.01, we can accept the reduced model without the interaction term. Additionally, when considering the individual student data and conducting ANOVA tests, the p-value was 0.083, further supporting the validity of excluding the interaction term. Moreover, utilizing median values at the teacher level, while accounting for individual student data, aligns with the results obtained from the entire dataset, reinforcing the feasibility of dropping the interaction term. Finally, from an efficiency standpoint, the inclusion of additional variables can lead to increased model complexity and difficulty in interpretation. Given the lack of clear significance, it is more reasonable to opt for a model without the interaction term, which is easier to interpret.
+
+```{r, results='hide', message = FALSE, warning = FALSE, echo = FALSE}
+# interaction term test
+
+t3 <- aov(median_math_score ~ as.factor(class_type)*school_id, data=star_dt_med)
+t1 <- aov(median_math_score ~ as.factor(class_type)+school_id, data=star_dt_med)
+anova(t1, t3)
+
+t3_1 <- aov(math_score ~ as.factor(class_type)*school_id, data=star_dt_med)
+t1_1 <- aov(math_score ~ as.factor(class_type)+school_id, data=star_dt_med)
+anova(t1_1, t3_1)
+
+t1_2 <- aov(median_math_score ~ school_id + as.factor(class_type), data=star_dt_med)
+summary(t1)
+summary(t1_2)
+
+```
+
+The cell means model for a balanced two-way ANOVA takes the following form
+$$
+Y_{ijk} = \mu_{..} + \alpha_{i} + \beta_{j} + \epsilon_{ijk}
+$$
+Where:
+
+  - \(Y_{ijk}\) is the response variable, represents the transformed median math score for observation (from median of math, teacher as unit) score for the \(i\)th class type, the \(j\)th school ID, and the \(k\)th class.
+\[
+\text{transformed_median_math_score} = \frac{{\text{median_math_score}^{-2} - 1}}{{-2}}
+\]
+  - \(\mu_{..}\) is the overall mean over all the indexes \(i,j,k\).
+  - \(\alpha_{i}\) represents the main effect of the \(i\)th class type on the math mean. The type of classes : small ($i=1$), regular ($i=2$), regular with aide ($i=3$).
+  - \(\beta_{j}\) represents the main effect of the \(j\)th school (identified by its ID).
+  - \(\epsilon_{ijk}\) is the random error term that refers to the unexplained variability in the dependent variable.
+  
+The constraints on the parameters : 
+
+  - \(\sum_{i=1}^{I} \alpha_i = 0\), ensuring that the sum of the class type effects is zero.
+  - \(\sum_{j=1}^{J} \beta_j = 0\), ensuring that the sum of the school effects is zero.
+  
+**Assumptions**
+
+The assumptions associated with this  ANOVA model are as follows:
+
+1. **Independence**: The observations are assumed to be independent of each other. That is, the value of \(Y_{ijk}\) for one combination of factors does not depend on the value of \(Y_{ijk}\) for any other combination of factors.
+
+2. **Normality**: The residuals (\(\epsilon_{ijk}\)) are assumed to be normally distributed.
+
+3. **Homogeneity of Variance (Homoscedasticity)**: The variance of the residuals is constant across all levels of the factors (\(\alpha_i\) and \(\beta_j\)).
+
+4. **Additivity**: The effects of one factor (\(\alpha_i\) or \(\beta_j\)) on the response variable (\(Y_{ijk}\)) are assumed to be constant across all levels of the other factor.
+
+
+## Differences in Math Scores Across Class Types
+
+To address the primary question of whether there are any differences in math scaled scores in 1st grade across class types, the following hypotheses need to be formulated and tested at a significance level of 0.01.
+
+$$ H_0: \alpha_i = 0 \quad \text{vs} \quad H_a: \text{at least one } \alpha_i \neq 0 $$
+
+Based on the model and hypothesis above, the p-value is 2e-16, which allows us to reject the null hypothesis at the significance level of 0.01. Therefore, we can reject the null hypothesis that there is no difference in math scores across all class types and accept the alternative hypothesis that there is at least one class type associated with different math scores in 1st grade at the significance level of 0.01. 
+
+```{r, results='hide', message = FALSE, warning = FALSE, echo = FALSE}
+fit1 <- aov(median_math_score ~ as.factor(class_type) + as.factor(school_id), data=star_dt_med)
+#summary(star_dt_med)
+#summary(fit1)
+
+```
+
+## Class Type Associated with Highest Math Scores
+
+In order to address this objective, we intend to employ the Tukey HSD (Honestly Significant Difference) test. This test enables us to compare the means of multiple groups and identify any statistically significant differences among them. By applying the Tukey HSD test, we aim to determine which class type exhibits the highest math scores. The following hypotheses need to be formulated and tested at a significance level of 0.01.
+
+\[H_0: \text{The math mean of all three class types are equal.} \]
+$$\text{vs} \quad\\H_a: \text{At least one math mean of class type differs from the others.}$$
+
+```{r, results='hold', message = FALSE, warning = FALSE, echo = FALSE}
+sig.level=0.05 # significance level
+
+#TukeyHSD(fit1, conf.level=1-sig.level)
+#kable(T.ci[1], caption = "Table6. difference between class types")
+
+tukey_results <- data.frame(
+  Class_Type = c("SMALL - REGULAR", "SMALL - REGULAR + AIDE", "REGULAR - REGULAR + AIDE "),
+  Difference = c(12.582195, 10.988378, 1.593817),
+  Lower_CI = c(11.514977, 9.895544, 0.5799992),
+  Upper_CI = c(13.6494134, 12.0812126, 2.607634),
+  P_adj = c(1.111478e-11, 1.111478e-11, 6.735725e-04)
+)
+
+colnames(tukey_results) <- c("Class types","Difference", "Lower CI", "Upper CI", "p-value")
+
+kable(tukey_results, caption = "Table 6: Tukey HSD Test Results for Class Type Differences in Math Scores")
+
+
+```
+Based on the results of the Tukey HSD test, which was conducted to examine the differences in mean math scores across different class types, significant variations were observed among the groups. Specifically, the mean math score difference between "SMALL CLASS" and "REGULAR CLASS" was found to be 12.582195, indicating a substantial difference with high statistical significance (p-value < 0.001). Similarly, the mean math score difference between "SMALL CLASS" and "REGULAR + AIDE CLASS" was 10.988378, demonstrating a significant difference with a p-value < 0.001. Moreover, the mean math score difference between "REGULAR CLASS" and "REGULAR + AIDE CLASS" was -1.593817, statistically significant but relatively smaller compared to the differences observed between the other two groups (p-value < 0.001).
+
+In conclusion, the Tukey HSD test results suggest that "SMALL CLASS" exhibits the highest mean math scores, followed by "REGULAR + AIDE CLASS" and "REGULAR CLASS" in descending order. These findings provide valuable insights into the effectiveness of different class types in enhancing students' math performance.
+
+## Interpretation(Causal effect)
+
+The statistically significant validation of the highest performance among students in small classes necessitates further examination to understand the underlying reasons. It is imperative to explore whether other factors contribute to the superior academic performance of students in small classes and whether such findings are statistically supported by the data.
+
+Firstly, an investigation into whether exceptional students or teachers are disproportionately allocated to small classes is warranted. To mitigate the possibility of small class performance being influenced by exceptional students, teachers, or schools, this research project employed a randomized allocation of students and teachers across three class types within each school. Such an approach serves as a method to neutralize potential biases that may arise from exceptional students, teachers, or schools during the data collection process. Statistical verification of the appropriateness of this data collection methodology is essential. This will be conducted in sensitivity analysis of the model. 
+
+Additionally, various factors may contribute to the potential benefits of small classes in enhancing students' learning abilities. Firstly, it is plausible to consider the enhancement of students' intrinsic motivation and self-concept through small class settings, which could positively impact learning outcomes. Analysis of survey data collected from students can shed light on this aspect. Moreover, small classes may facilitate the socialization process and familiarization with educational curriculum for younger students. The formation of close-knit friendships and receiving personalized attention from teachers may be advantageous in small groups. Additionally, small classes might be more effective for socially marginalized or economically disadvantaged students, providing them with increased educational interest and opportunities compared to larger classes. This is especially pertinent for students who require additional guidance and support in their early learning stages. Lastly, the role and motivation of teachers could also influence the effectiveness of small classes. In relatively smaller classes, teachers may have fewer administrative tasks and may be better equipped to identify and address students' needs, thus positively impacting student performance.
+
+Analysis of the aforementioned factors through data examination will enable us to draw valid conclusions regarding the efficacy of small classes in enhancing student performance.
+
+
+**Potential Benefits of Small Classes: Student Perspective**
+
+- Initial Education Effects on Socialization and Learning Adaptation
+
+The understanding of socialization, forming friendships, and adhering to the curriculum and teacher guidance at the initial stages of education may be advantageous in small classes. This is because it is easier to establish intimacy within small groups, and teachers can concentrate more effectively on relatively fewer students. These effects may be particularly beneficial for young students or those from low-income, apart from enhancing educational opportunities up to a certain level of learning.
+
+To verify this, I will initially conduct statistical analyses based on the classification of location that may be considered low-income and the presence of free lunch programs. Additionally, I will analyze the improvement in math scores for second and third graders to further investigate the effects.
+
+According to the two-way ANOVA model below, school location emerges as a significant main effect, and the interaction between class type and school location is also significant. However, as depicted in the graph below, the most significant effect of the small class is observed in urban areas. The second most significant effect is observed in suburban areas, while rural areas show the least impact. This suggests that the influence of small class types on academic improvement is consistent across areas, regardless of the proportion of students receiving free lunch. Hence, while the effect varies by location, it appears to be independent of household income levels.
+
+Secondly, for longitudinal analysis, the difference in math scores between 2nd and 1st grade, and between 3rd and 2nd grade was calculated to examine its correlation with class type. The results indicate that class type is a significant factor, albeit showing diminishing significance annually (1st grade: p < 2e-16, 2nd grade: p = 0.0109, 3rd grade: p = 0.0352). Combining the annual analysis with the longitudinal findings suggests the following: 1) Student achievement and progress are significantly enhanced in small classroom settings, 2) Small class experiences are particularly successful in 1st grade.
+
+```{r, results='hold', message = FALSE, warning = FALSE, echo = FALSE}
+#str(star_dt_med)
+fit_loc <- aov(median_math_score ~ as.factor(class_type) * as.factor(school_location), data = star_dt_med)
+# summary(fit_loc)
+
+median_scores_loc <- star_dt_med %>%
+  group_by(school_location, class_type) %>%
+  summarise(median_math_score2 = median(median_math_score, na.rm = TRUE))
+#median_scores_loc
+
+attach(star_dt_med)
+interaction.plot(class_type, school_location, median_math_score,
+                cex.lab=1.5, ylab="Median Math Score", xlab='Class Type', 
+                main="Interaction effects between class type and location",
+                col = c("blue", "orange", "green", "red"))
+detach(star_dt_med)
+
+
+#Longitudinal Analysis
+star_dt_lon <- STAR[,c("FLAGSG1","g1classtype", "g1tmathss","g2tmathss", "g3tmathss", "g1schid")]
+star_dt_lon <- subset(star_dt_lon, FLAGSG1 == "YES") # data of grade 1
+
+star_dt_lon$g2_minus_g1 <- star_dt_lon$g2tmathss - star_dt_lon$g1tmathss
+star_dt_lon$g3_minus_g2 <- star_dt_lon$g3tmathss - star_dt_lon$g2tmathss
+
+#summary(is.na(star_dt_lon$g2_minus_g1))
+#summary(is.na(star_dt_lon$g3_minus_g2))
+
+#t_result <- t.test(star_dt_lon$g3_minus_g2, star_dt_lon$g2_minus_g1, alternative = "less")
+#t_result
+
+fit_lon1 <- aov(g2_minus_g1 ~ as.factor(g1classtype)+as.factor(g1schid), data = star_dt_lon)
+#summary(fit_lon1)
+fit_lon2 <- aov(g3_minus_g2 ~ as.factor(g1classtype)+as.factor(g1schid), data = star_dt_lon)
+#summary(fit_lon2)
+
+```
+
+- Motivation & Self-concept
+
+According to the linear regression analysis, a significant correlation was found between math scores and motivation at a significance level of 0.01. However, it was difficult to find a significant relationship between math scores and self-concept (p-value: 0.621). Additionally, the correlation between class type and motivation was not significant according to the linear regression analysis (F-statistic: 0.08059 on 2 and 5849 DF, p-value: 0.9226). The Adjusted R-squared (0.02368) was very low in the first model, and with 977 missing values, it is challenging to claim accurate analysis. Moreover, the data collection through surveys on motivation and self-concept might have limitations when investigating young children.
+
+```{r, results='hide', message = FALSE, warning = FALSE, echo = FALSE}
+summary(star_dt_med$self_concept)   # NA's : 977
+summary(star_dt_med$motivation)     # NA's : 977
+
+fit_sm <- lm(math_score ~  class_type + motivation + self_concept, data = star_dt_med)
+summary(fit_sm)
+
+fit_m <- lm(motivation~class_type, data = star_dt_med)
+summary(fit_m)
+
+```
+
+
+
+
+**Potential Benefits of Small Classes: Teacher Perspective**
+
+- Efficient management of teachers
+
+Teachers can more efficiently manage and supervise small-sized classes. Therefore, it is perceived that teachers can be more proactive in promoting extra students in small classes. In the case of promotion, it does not necessarily require students to achieve very high scores; it can be achievable when various factors such as attendance and participation are evenly satisfied. Thus, teacher management and supervision can play an important role. Firstly, confirm it through the data. As can be seen in Table 7 below, it can be confirmed that the promotion rate is highest in "Small classes" compared to other types. And in the order of "Regular-Aide", "Regular" type, the promotion rate decreases. Furthermore, the p-value of the chi-squared test is 4.117e-06, providing sufficient evidence to reject the null hypothesis at a significance level of 0.01. Therefore, it can be said that the promotion rate varies depending on the class type. This can explain the hypothesis above. Teachers can more efficiently manage and supervise small-sized classes, resulting in a positively higher promotion rate.
+
+```{r, results='hold', message = FALSE, warning = FALSE, echo = FALSE}
+kable(table(star_dt_med$class_type, star_dt_med$promotion), caption = "Table 7: Promotion by class type")
+cross_tab <- table(star_dt_med$class_type, star_dt_med$promotion)
+chisq_test <- chisq.test(cross_tab)
+#chisq_test
+
+```
+
+**Potential Benefits of Small Classes : conclude**
+
+If the educational goals are to enhance higher-order thinking skills, creativity, and personal responsibility for learning, reducing the teacher/student ratio to enable teachers to effectively achieve these goals may be important. As less repetitive tasks, context-appropriate reading and writing, and problem-solving activities are more required, more teacher/student interaction than the current curriculum may be necessary. Additionally, from the students' perspective, starting education in lower grades requires adaptation to unfamiliar environments, socialization, and learning how to follow educational curricula, which can be effectively accomplished in small-sized classrooms.
+
+
+# Sensitivity analysis 
+
+
+Here We assess the following assumptions regarding the model:
+
+Possible departures from the model assumptions include unequal variances of error terms, lack of independence among error terms, non-normal distribution of error terms, presence of outliers, and missing variables.
+
+To evaluate these assumptions, we will conduct the Anderson-Darling test and inspect Q-Q plots to examine normality of error terms, perform Bartlett test to check for unequal variances, examine diagnostic plots and the Durbin-Watson statistic to assess independence of error terms, identify outliers through examination of standardized residuals, leverage values, and Cook's distance, and assess the possibility of missing variables through exploratory data analysis and domain knowledge.
+
+**normal distribution**
+
+Firstly, we can analyze the following graphs. Through the "Residuals vs Fitted" plot, we observe that the residuals do not exhibit any noticeable trend and are evenly distributed. Additionally, by examining the "Q-Q Plot," we can test for normality. We notice that the right tail slightly deviates upwards (left skewed), and we will further verify this through statistical tests.
+
+In the initial model (fit1), the median math scores were regressed on class type and school ID. The residuals of this model exhibited significant departure from normality, as indicated by the Anderson-Darling test (A = 12.552, p-value < 2.2e-16). 
+
+To address the non-normality issue, a transformed response variable was created using the Box-Cox transformation with a lambda value of -2. The transformed median math scores were then regressed on class type and school ID in the second model (fit2). The residuals of this transformed model also showed departure from normality (A = 6.74, p-value < 2.2e-16), suggesting that the transformation did not fully resolve the normality assumption violation. The right tail has decreased compared to the initial QQ plot, as shown in the QQ plot below.
+
+From the data analysis, after excluding the inner city with a mean median math score of 506.8634 and a variance of 538.4518, and the urban areas with a mean median math score of 533.0016 and a variance of 907.0168, the normality test was conducted. Although the p-value increased, indicating some improvement in normality, the data still failed to satisfy the normality assumption. Therefore, we adopted a conservative approach towards data exclusion, selecting the transformation with the highest p-value. Despite the model's inability to meet the normality assumption, it revealed that both class type and school ID have significant effects on the outcome variable. Notably, the model highlighted varying means across class types, with the small class exhibiting the highest student performance. Thus, despite the non-normality issue attributed to data collection errors and disparities in variance across regions and schools, the model remains useful. Particularly, the observed increase in p-value upon excluding certain regions suggests regional variance and differences in class-wise achievement rankings, contributing to partially satisfying the normality assumption.
+
+```{r, results='hide', message = FALSE, warning = FALSE, echo = FALSE}
+library(nortest)
+library(MASS)
+
+# fit1
+fit1 <- aov(median_math_score ~ as.factor(class_type) + as.factor(school_id), data=star_dt_med) #initial model
+
+#par(mfrow=c(1,2))
+#plot(fit1,cex.lab=1.2,which=1:2)
+#par(mfrow=c(1,1))
+#ad.test((fit1$residuals))      # A = 12.552, p-value < 2.2e-16
+
+# fit2  - boxcox (lambda = -2)
+
+# boxcox_result <- boxcox(median_math_score ~ as.factor(class_type) + as.factor(school_id), data = star_dt_med)
+
+#lambda <- boxcox_result$x[which.max(boxcox_result$y)]
+#lambda                         # -2
+
+transformed_median_math_score <- (star_dt_med$median_math_score^(-2) - 1) / (-2)
+
+fit2 <- aov(transformed_median_math_score ~ as.factor(class_type) + as.factor(school_id), data = star_dt_med)
+
+#summary(fit2)
+#ad.test((fit2$residuals))     # A = 6.74, p-value < 2.2e-16
+
+par(mfrow=c(2,2))
+#plot(fit1,cex.lab=1.2,which=1:2)
+#plot(fit2,cex.lab=1.2,which=1:2)
+
+par(mfrow=c(1,1))
+
+# fit3  - log transform
+
+fit3 <- aov(log(median_math_score) ~ as.factor(class_type) + as.factor(school_id), data = star_dt_med)
+
+
+#summary(fit3)
+#ad.test((fit3$residuals))   # A = 9.9663, p-value < 2.2e-16
+
+# Analysis of data by school location 
+
+mean_variance <- star_dt_med %>%
+  group_by(school_location) %>%
+  summarize(mean_median_math_score = mean(median_math_score),
+            variance_median_math_score = var(median_math_score))
+mean_variance
+
+fit_interaction <- lm(median_math_score ~ as.factor(class_type) * school_location, data = star_dt_med)
+#fit_interaction
+
+
+# fit4 - drop the inner city data
+
+filtered_data <- subset(star_dt_med, school_location != "INNER CITY")
+fit4 <- aov(median_math_score ~ as.factor(class_type) + as.factor(school_id), data=filtered_data)
+
+summary(fit4)
+ad.test((fit4$residuals))  # A = 7.4469, p-value < 2.2e-16
+
+# fit5 - boxcox of filtered data
+
+#boxcox_result2 <- boxcox(median_math_score ~ as.factor(class_type) + as.factor(school_id), data =filtered_data)
+
+#lambda2 <- boxcox_result2$x[which.max(boxcox_result2$y)]
+#lambda2                         # -2
+
+transformed_median_math_score2 <- (filtered_data$median_math_score^(-2) - 1) / (-2)
+
+fit5 <- aov(transformed_median_math_score2 ~ as.factor(class_type) + as.factor(school_id), data = filtered_data)
+
+summary(fit5)
+ad.test(fit5$residuals) # A = 4.7234, p-value = 1.07e-11
+
+# fit6 - drop the inner city data and urban
+
+filtered_data2 <- subset(filtered_data, school_location != "URBAN")
+fit6 <- aov(median_math_score ~ as.factor(class_type) + as.factor(school_id), data=filtered_data2)
+
+summary(fit6)
+ad.test(fit6$residuals)       # A = 8.8937, p-value < 2.2e-16
+shapiro.test(fit6$residuals)  # W = 0.99196, p-value = 6.657e-16
+
+# fit7 - boxcox of filtered data2
+
+#boxcox_result3 <- boxcox(median_math_score ~ as.factor(class_type) + as.factor(school_id), data =filtered_data2)
+
+#lambda3 <- boxcox_result3$x[which.max(boxcox_result3$y)]
+#lambda3                         # -2
+
+transformed_median_math_score3 <- (filtered_data2$median_math_score^(-2) - 1) / (-2)
+
+fit7 <- aov(transformed_median_math_score3 ~ as.factor(class_type) + as.factor(school_id), data = filtered_data2)
+
+summary(fit7)
+ad.test((fit7$residuals))      # A = 5.4209, p-value = 2.273e-13
+shapiro.test(fit7$residuals)   # W = 0.99644, p-value = 2.378e-09
+
+# glm() of fit5
+
+fit8 <- glm(transformed_median_math_score2 ~ as.factor(class_type) + as.factor(school_id), data = filtered_data, family = gaussian(link = "identity"))
+
+summary(fit8)
+ad.test((fit8$residuals))
+
+formula(fit8)
+
+```
+
+```{r, results='hold', message = FALSE, warning = FALSE, echo = FALSE}
+mean_variance <- star_dt_med %>%
+  group_by(school_location) %>%
+  summarize(mean_median_math_score = mean(median_math_score),
+            variance_median_math_score = var(median_math_score))
+kable(mean_variance, caption = "Table8. The mean and variance of math scores by location.")
+par(mfrow=c(1,2))
+plot(fit1,cex.lab=1.2,which=1:2)
+plot(fit5,cex.lab=1.2,which=1:2)
+par(mfrow=c(1,1))
+
+```
+
+**Testing equal variance**
+
+In order to check the assumptions of equal variances, the BArlett test is perfomed
+
+$H_0$: The variances of the groups are equal    \quad  vs  \quad
+$H_a$: At least one group has a different variance
+
+In order to check, the statistic is 
+
+\( K^2 = (n_T - r) \log(MSE) - \sum_{i=1}^{r} (n_i - 1) \log(s^2_i) \)
+
+According to the Bartlett test, the initial model rejects the null hypothesis at a significance level of 0.01 (p-value = 3.426e-08). However, based on the results obtained from the previous normality testing process, the transformed second model fails to reject the null hypothesis. Therefore, in the transformed model, we cannot reject the null hypothesis that the variances are equal among groups (p-value = 0.1503). Through these statistical tests, we can provide evidence supporting the adequacy of the transformed model.
+
+```{r , results='hide', message = FALSE, warning = FALSE, echo = FALSE}
+
+str(star_dt_med)
+# Bartlett test:
+
+# initial model
+
+bartest1 <- bartlett.test(median_math_score ~ as.factor(class_type), data = star_dt_med)
+# bartest1
+
+
+# transformed model
+
+fit2 <- aov(transformed_median_math_score ~ as.factor(class_type) + as.factor(school_id), data = star_dt_med) 
+bartest2 <- bartlett.test(transformed_median_math_score ~ as.factor(class_type), data = star_dt_med)
+# bartest2
+
+```
+
+**Testing independence**
+
+We will conduct a Durbin-Watson test for testing the hypothesis regarding the independence assumption. The hypothesis is as follows:
+
+$H_0 \text{: The residuals are independent.}$  vs $H_a \text{: The residuals are not all independent.}$
+
+According to the Durbin-Watson test results, the Durbin-Watson statistic is 1.973146 and the p-value is 0.24, indicating that we cannot reject the null hypothesis. Therefore, we fail to reject the hypothesis that all residuals are independent, suggesting that the model satisfies the assumption of the independence of residuals.
+
+```{r, results='hide', message = FALSE, warning = FALSE, echo = FALSE}
+
+library(car)
+# Durbin-Watson 검정 수행
+durbinWatsonTest(fit1)
+dw <- durbinWatsonTest(fit2$residuals)
+str(dw)
+
+```
+
+**Testing outlier**
+
+In statistical analysis, identifying and handling outliers is crucial to ensure the reliability of the model. Outliers, or data points that significantly deviate from the rest of the data, can distort statistical analyses and lead to inaccurate results. In this section, we discuss the process of identifying and removing outliers from the dataset and subsequently creating a new statistical model.
+
+Outlier Identification involved calculating residuals and standardizing them to detect observations deviating significantly from the predictions of model, commonly considered as outliers. The subsequent analysis examined the distribution of outliers across class types and school locations, offering insights into their prevalence within distinct groups. After removing outliers, a new statistical model (fit_clean) was constructed using the cleaned dataset. This model, akin to the initial one, facilitated understanding the relationships between predictors and transformed median math scores. The summary of the new model provided comprehensive information on predictor significance, aiding in the interpretation of model outcomes post-outlier removal.
+
+However, the new model also fails to meet the assumption of normality(p-value < 2.2e-16), and since it does not differ significantly from the original model, we will maintain the original model with a conservative approach to data deletion.
+
+```{r, , results='hold', message = FALSE, warning = FALSE, echo = FALSE}
+
+# finding outlier
+
+residuals <- residuals(fit2)
+std_residuals <- rstandard(fit2)
+
+outliers <- abs(std_residuals) > 2  # The arbitrary value set
+
+#total_outliers <- sum(outliers)   # 357
+
+# outliers by location anc class type
+
+#outliers_by_location_class <- table(outliers, star_dt_med$class_type, star_dt_med$school_location)
+#kable(outliers_by_location_class )
+
+
+# Removing Outliers and Creating a New Model
+#star_dt_med_clean <- star_dt_med[!outliers, ]
+
+
+#fit_clean <- aov(transformed_median_math_score ~ as.factor(class_type) + as.factor(school_id), data = star_dt_med_clean)
+
+#summary(fit_clean)
+
+#ad.test(fit_clean$residuals)  # A = 6.7256, p-value < 2.2e-16
+
+
+```
+
+**Analysis of Missing Values**
+
+In examining the proportions of missing values across various class types and school locations, the following insights were gleaned from the analysis:
+
+Within the INNER CITY locale, the REGULAR + AIDE CLASS exhibited a relatively higher proportion of missing values (4.91%), while in the SUBURBAN, the REGULAR CLASS showed a proportion of 3.17%.
+
+Notably, in the RURAL, both the SMALL CLASS and REGULAR + AIDE CLASS displayed elevated proportions of missing values compared to other class types.
+
+These observed disparities in missing value proportions across different class types and locations may stem from various data collection protocols or contextual factors. While the overall impact of missing values on the model analysis appears to be limited, it is imperative to delve deeper into the ramifications of elevated missing value proportions, particularly within specific class types or locations, on the model outcomes. Such an investigation is crucial as missing values have the potential to distort data integrity, underscoring the necessity of incorporating these nuances into the model evaluation process within a statistical framework.
+
+```{r, , results='hide', message = FALSE, warning = FALSE, echo = FALSE}
+missing_values <- table(is.na(star_g1$g1tmathss), star_g1$g1classtype, star_g1$g1surban)
+kable(missing_values)
+
+```
+
+
+# Discussion 
+
+
+**Conclusion**
+
+In conclusion, our analysis reveals significant disparities in 1st-grade math scores across different class types, with small classes demonstrating notably superior performance compared to other class types. This finding underscores the need for further investigation into the causal factors driving the enhanced academic outcomes observed in small classes.
+
+Firstly, our study design effectively mitigates potential biases stemming from exceptional students, teachers, or schools being disproportionately allocated to small classes. The randomized allocation of students and teachers across class types within each school ensures the robustness of our findings and underscores the validity of our data collection methodology.
+
+Additionally, our examination of various factors contributing to the benefits of small classes suggests several potential mechanisms underlying their efficacy in enhancing student learning. These include the promotion of intrinsic motivation and self-concept, facilitated socialization processes, personalized attention from teachers, and increased educational interest and opportunities for socially marginalized or economically disadvantaged students. Moreover, the reduced administrative burden on teachers in small classes may further contribute to their effectiveness in addressing students' individual needs.
+
+Considering the perspectives of students, our analysis indicates that small classes offer significant initial educational advantages in terms of socialization and learning adaptation, particularly for young students and those from low-income backgrounds. Furthermore, longitudinal analysis demonstrates the enduring impact of small class experiences, with consistent improvements observed across different school locations and income levels, albeit showing diminishing significance over time.
+
+In summary, our findings underscore the substantial benefits of small classes in fostering enhanced academic achievement and progress, particularly in the crucial 1st-grade year. These insights highlight the importance of considering class size as a critical factor in educational policy and practice, emphasizing the need for further research and investment in initiatives aimed at promoting smaller class sizes for optimal student outcomes.
+
+Through this analysis, we believe there are two areas that require improvement. Firstly, in terms of data collection, there needs to be a stronger emphasis on randomization of data to enhance normality. Additionally, from a content perspective, there should be specific data available regarding the role of assistant teachers to analyze the influence of small class sizes. Furthermore, qualitative analysis of students should complement quantitative data to allow for a detailed examination of learning effects. Lastly, to provide a more comprehensive analysis of student effects, a survey should be included to understand in what aspects students perceive assistance, and educational content should be enhanced.
+
+**caveats**
+
+In this analysis, there is a need for improvement due to the failure to meet the assumption of normality. This is attributed to variations in data across different regions and potential biases introduced by missing values. Additionally, variables such as student motivation and self-concept did not yield statistically significant results.
+Additionally, I believe it is necessary to conduct a comprehensive analysis of other grades to assess their sustained growth. Furthermore, comparing subjects such as reading to mathematics can shed light on the role of small classes in individual learning, teaching methods, and peer relationships.
+In the initial report, mean values were utilized for analysis. However, recognizing the susceptibility of mean values to outliers, in this study, I opted for the use of median values. Additionally, while the initial report failed to delve into the reasons behind the superior performance of small class types, this analysis explored this aspect by incorporating a broader range of variables (math scores of 2nd and 3rd graders, motivation, self-concept, grade promotion, and locality). Particularly noteworthy is the high impact of small classes on lower grades and their correlation with higher promotion rates, which underscores the significance of analyzing the underlying reasons. Moreover, variations in data across different regions were observed. Lastly, transformations were employed to assess the normality of the model, allowing for the consideration of various models to enhance the statistical validity of the analysis.
+
+# Acknowledgement {-}
+
+Project discussed with classmates Bacon, P, Qureshi, L, Kim, J, Jewell, B, Alim, L and Lu, J.
+
+
+
+# Reference {-}
+Neter, J., Wasserman, W., & Kutner, M. H. (1990). Applied linear statistical models : regression, analysis of variance, and experimental designs. 3rd ed. Burr Ridge (Ill.): Irwin.
+Farris, Andrew. Class STA104 Applied Statistical Methods: Nonparametric Statistics
+Imbens, G., & Rubin, D. (2015). Stratified Randomized Experiments. In Causal Inference for Statistics, Social, and Biomedical Sciences: An Introduction (pp. 187-218). Cambridge: Cambridge University Press. doi:10.1017/CBO9781139025751.010
+
+# Session info {-}
+
+
+```{r}
+sessionInfo()
+```
+
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+
+
+```
